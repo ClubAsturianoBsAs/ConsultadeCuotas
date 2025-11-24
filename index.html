@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Cuotas de Socios</title>
+    <!-- Carga de Tailwind CSS para un diseño moderno y responsivo --><script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Configuración de fuente Inter para un look limpio */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        /* Estilo para el fondo del formulario */
+        .card-bg {
+            background-color: #ffffff;
+        }
+        /* Animación de carga para el botón */
+        .spinner {
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1d4ed8',
+                        secondary: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Contenedor Principal del Formulario -->
+    <div class="w-full max-w-lg card-bg p-6 sm:p-10 rounded-xl shadow-2xl transition-all duration-300">
+        <!-- LOGO -->
+        <div class="flex justify-center mb-6">
+            <a href="https://imgbb.com/"><img src="https://i.ibb.co/qLGfbmZk/logo-centro-asturiano2.png" alt="logo-centro-asturiano2" border="0"></a>
+        </div>
+        
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-2 text-center">
+            Consulta de Cuotas
+        </h1>
+        <p class="text-gray-500 mb-8 text-center">
+            Ingresa el Número de Socio para ver tu desglose de cuota.
+        </p>
+
+        <!-- Campo de Entrada -->
+        <div class="mb-6">
+            <label for="socioId" class="block text-sm font-medium text-gray-700 mb-2">
+                Número de Socio (Ej: 12345)
+            </label>
+            <input type="text" id="socioId" placeholder="Ingresa tu Número de Socio..."
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition duration-150"
+                   aria-label="Código de Socio">
+        </div>
+
+        <!-- Botón de Consulta -->
+        <button id="consultarBtn" onclick="consultarCuota()"
+                class="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 flex items-center justify-center">
+            <span id="buttonText">Consultar Cuotas</span>
+            <div id="loadingSpinner" class="spinner w-5 h-5 border-2 rounded-full border-transparent" hidden></div>
+        </button>
+
+        <!-- Área de Resultados / Mensajes -->
+        <div id="resultado" class="mt-8 p-4 bg-white border border-gray-200 rounded-lg shadow-inner transition-all duration-300 transform scale-100 opacity-100" hidden>
+            <!-- El resultado se inyectará aquí -->
+        </div>
+    </div>
+    
+    <!-- MARCA DE AGUA AL PIE DE PÁGINA (Actualizado con logominiatura) -->
+    <footer class="mt-6 text-center text-sm text-gray-400 flex items-center justify-center space-x-1">
+        <span>Powered by</span>
+        <!-- Logominiatura CS (Mini-Badge) -->
+        <span class="inline-flex items-center justify-center h-5 w-5 rounded-full bg-indigo-500 text-white font-bold text-[10px] leading-none shadow-md">
+            CS
+        </span>
+    </footer>
+
+    <!-- Script de Lógica -->
+    <script type="module">
+        // URL de tu Apps Script Web App (Asegúrate de que el despliegue es el correcto)
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzr7TpL_zLfyQLnQujZ95AqAgo60PCgdrAfkK-7B6A_KlEtawPmDLIehmpkgaTDt2Q-/exec'; 
+
+        const input = document.getElementById('socioId');
+        const resultadoDiv = document.getElementById('resultado');
+        const buttonText = document.getElementById('buttonText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const consultarBtn = document.getElementById('consultarBtn');
+
+        /**
+         * Formatea un número como moneda usando el punto (.) como separador de miles
+         * y la coma (,) como separador decimal, siguiendo el estándar 'es-ES'.
+         * @param {number} amount - El monto a formatear.
+         * @returns {string} El monto formateado como string.
+         */
+        function formatCurrency(amount) {
+            if (typeof amount !== 'number' || isNaN(amount) || amount === null) {
+                return 'N/A';
+            }
+            return new Intl.NumberFormat('es-ES', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            }).format(amount);
+        }
+
+        /**
+         * Consulta los registros llamando al Apps Script desplegado.
+         */
+        async function consultarCuota() {
+            const socioId = input.value.trim().toUpperCase();
+            
+            // 1. Validación de Entrada
+            if (!socioId) {
+                mostrarMensaje(
+                    'Por favor, ingresa tu Número de Socio.', 
+                    'bg-red-100 border-red-400 text-red-700'
+                );
+                return;
+            }
+
+            // Bloquea el botón y muestra el spinner
+            consultarBtn.disabled = true;
+            buttonText.textContent = 'Consultando...';
+            loadingSpinner.hidden = false;
+            resultadoDiv.hidden = true;
+
+            try {
+                // Construir la URL con el ID de socio como parámetro de búsqueda
+                const fullUrl = `${APPS_SCRIPT_URL}?socioId=${encodeURIComponent(socioId)}`;
+
+                const response = await fetch(fullUrl);
+                const data = await response.json();
+
+                if (data.error) {
+                    // Manejar errores como "Socio no encontrado" o error de hoja de cálculo
+                    mostrarMensaje(
+                        data.error.includes("no encontrado") 
+                            ? `El Número de Socio "${socioId}" no fue encontrado. Asegúrate de que existe un registro para él.`
+                            : `Error de datos: ${data.error}`,
+                        'bg-yellow-100 border-yellow-400 text-yellow-700'
+                    );
+                } else {
+                    // Socio encontrado, mostrar el resultado
+                    mostrarResultado(data);
+                }
+
+            } catch (error) {
+                console.error("Error al consultar Apps Script:", error);
+                mostrarMensaje(
+                    `Hubo un error de conexión. Asegúrate de que la URL (${APPS_SCRIPT_URL}) es correcta y el script está desplegado.`, 
+                    'bg-red-100 border-red-400 text-red-700'
+                );
+            } finally {
+                // Desbloquea el botón y oculta el spinner
+                consultarBtn.disabled = false;
+                buttonText.textContent = 'Consultar Cuotas';
+                loadingSpinner.hidden = true;
+            }
+        }
+
+        /**
+         * Muestra un mensaje de error o advertencia simple.
+         * @param {string} mensaje - El texto a mostrar.
+         * @param {string} clases - Clases de Tailwind para el fondo y texto.
+         */
+        function mostrarMensaje(mensaje, clases) {
+            resultadoDiv.className = `mt-8 p-4 rounded-lg shadow-md ${clases}`;
+            resultadoDiv.innerHTML = `<p class="font-semibold">${mensaje}</p>`;
+            resultadoDiv.hidden = false;
+        }
+
+        /**
+         * Muestra los detalles de todos los registros encontrados para el socio.
+         * @param {Object} data - Datos consolidados: 
+         * { 
+         * nombreSocioConsulta: string, 
+         * idSocioConsulta: string, 
+         * jefe: string, 
+         * records: Array<Object> 
+         * }.
+         */
+        function mostrarResultado(data) {
+            
+            // Utilizamos el ID de socio como fallback si el nombre es undefined
+            const nombreSocioDisplay = data.nombreSocioConsulta || data.idSocioConsulta;
+
+            // 1. Calcular el total a pagar sumando los importes de todos los registros
+            const totalPagar = data.records.reduce((sum, record) => sum + (record.importe || 0), 0);
+            
+            // 2. Generar el HTML para cada registro (tarjeta)
+            const recordsHtml = data.records.map(record => `
+                <div class="border border-gray-200 p-4 rounded-xl shadow-sm hover:shadow-md transition duration-150 bg-white">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                            ${record.categoria}
+                        </span>
+                        <span class="text-sm font-semibold text-gray-700">Período: ${record.periodo}</span>
+                    </div>
+
+                    <!-- LÍNEA: Mostrar a qué socio (miembro de la familia) pertenece este concepto -->
+                    <p class="text-xs text-gray-500 mb-2 border-b border-gray-100 pb-1">
+                        Aplica a: <span class="font-semibold text-gray-700">${record.nombre}</span> (Socio Nº: ${record.socioId})
+                    </p>
+                    
+                    <div class="text-2xl font-extrabold text-primary mb-1">
+                        $${formatCurrency(record.importe)}
+                    </div>
+                    
+                    <div class="text-gray-600 pt-2 border-t border-gray-100">
+                        <span class="font-medium block mb-1 text-sm">Descripción:</span>
+                        <p class="text-gray-800 text-sm bg-gray-50 p-2 rounded-lg">${record.descripcion}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            resultadoDiv.className = `mt-8 p-6 bg-white border border-secondary rounded-xl shadow-lg`;
+            resultadoDiv.innerHTML = `
+                <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800">Socio: ${nombreSocioDisplay}</h2>
+                    <span class="text-sm font-medium text-gray-500">Nº Socio: ${data.idSocioConsulta}</span>
+                </div>
+                
+                <!-- Información del Jefe de Familia -->
+                <div class="mb-4 p-3 bg-blue-50 rounded-lg text-center shadow-inner">
+                    <p class="text-sm font-semibold text-blue-700">
+                        Jefe de Familia (Titular): <span class="font-extrabold">${data.jefe}</span>
+                    </p>
+                    <p class="text-xs text-blue-600 mt-1 font-medium">
+                        (Mostrando TODOS los ${data.records.length} conceptos relacionados con la familia del titular)
+                    </p>
+                </div>
+                
+                <!-- SECCIÓN: Total Consolidado a Pagar -->
+                <div class="mb-6 p-4 bg-primary text-white rounded-xl text-center shadow-xl">
+                    <p class="text-lg font-semibold">TOTAL CONSOLIDADO A PAGAR (Familia)</p>
+                    <p class="text-4xl font-extrabold mt-1">
+                        $${formatCurrency(totalPagar)}
+                    </p>
+                </div>
+                
+                <h3 class="text-lg font-bold text-gray-700 mb-4">Conceptos encontrados:</h3>
+                
+                <!-- Contenedor para la lista de registros con scroll para listas largas -->
+                <div class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    ${recordsHtml}
+                </div>
+                
+                <!-- SECCIÓN ACTUALIZADA: Contacto por WhatsApp -->
+                <div class="mt-6 pt-4 border-t border-gray-100 text-sm text-gray-500 text-center">
+                    <p class="mb-4 text-gray-700">Si tienes alguna consulta o falta de información, contáctanos directamente:</p>
+                    <a href="https://wa.me/5491151585858" target="_blank" 
+                       class="inline-flex items-center text-white bg-green-500 hover:bg-green-600 font-bold py-3 px-6 rounded-full transition duration-200 shadow-xl transform hover:scale-[1.02]">
+                        <!-- Icono de WhatsApp (SVG) -->
+                        <svg viewBox="0 0 24 24" class="w-6 h-6 mr-3 fill-current" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C6.486 2 2 6.486 2 12c0 3.197 1.35 6.096 3.518 8.127L4 22l2.127-1.518C8.01 21.35 9.903 22 12 22c5.514 0 10-4.486 10-10S17.514 2 12 2zm3.321 13.56c-.341.67-.796.883-1.666.969-1.206.126-1.58-.15-2.731-.563-1.841-.667-3.218-1.928-4.372-3.415-.224-.29-.44-.606-.64-.935-.07-.113-.099-.24-.099-.374 0-.497.18-.893.388-1.12.08-.09.214-.176.353-.264.444-.27.842-.511 1.25-.758.26-.157.49-.283.65-.403.491-.371.867-.714 1.157-1.157.266-.411.399-.867.399-1.373 0-.702-.271-1.32-.81-1.85-.436-.436-.983-.733-1.597-.993-.346-.146-.66-.27-.852-.338-.27-.099-.54-.188-.82-.267-.28-.08-.56-.109-.84-.109-.597 0-1.13.167-1.55.511-.42.344-.66.82-.66 1.373 0 .497.167.993.535 1.488 1.05 1.42 2.76 2.91 4.5 4.341 1.44.75 2.78 1.125 4.02 1.125.702 0 1.25-.167 1.68-.497.43-.33.65-.82.65-1.488 0-.42-.112-.76-.239-.99-.127-.23-.271-.44-.457-.61-.318-.288-.636-.576-.954-.864-.179-.17-.358-.34-.515-.515z"/>
+                        </svg>
+                        <span>WhatsApp (11 5158-5858)</span>
+                    </a>
+                </div>
+            `;
+            resultadoDiv.hidden = false;
+        }
+
+        // Permitir consultar al presionar Enter en el campo de texto
+        input.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                consultarCuota();
+            }
+        });
+
+        // Exponer la función globalmente para el onclick del botón
+        window.consultarCuota = consultarCuota;
+    </script>
+</body>
+</html>
