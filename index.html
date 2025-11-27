@@ -42,9 +42,10 @@
 
     <!-- Contenedor Principal del Formulario -->
     <div class="w-full max-w-lg card-bg p-6 sm:p-10 rounded-xl shadow-2xl transition-all duration-300">
-        <!-- LOGO -->
-        <div class="flex justify-center mb-6">
-<a href="https://imgbb.com/"><img src="https://i.ibb.co/fzKg4fGZ/logo-2.jpg" alt="logo-2" border="0"></a>
+        <!-- LOGO (Actualizado para llamar a resetForm() al hacer clic) -->
+        <div class="flex justify-center mb-6 cursor-pointer" onclick="resetForm()">
+            <!-- Se elimina el <a> de imgbb.com y se envuelve la imagen para el clic -->
+            <img src="https://i.ibb.co/fzKg4fGZ/logo-2.jpg" alt="logo-2" border="0" class="max-w-[150px] h-auto transition duration-150 transform hover:scale-[1.03]">
         </div>
         
         <h1 class="text-3xl font-extrabold text-gray-900 mb-2 text-center">
@@ -132,6 +133,23 @@
             
             // 3. Limita la longitud y actualiza el valor del input
             input.value = formattedValue.substring(0, 10);
+        }
+        
+        /**
+         * FUNCIÓN NUEVA: Reinicia el formulario, borrando los inputs y el resultado.
+         */
+        window.resetForm = function() {
+            inputSocio.value = '';
+            inputFecha.value = '';
+            resultadoDiv.innerHTML = '';
+            resultadoDiv.hidden = true;
+            inputSocio.focus(); // Coloca el foco en el primer campo para empezar de nuevo.
+
+            // Muestra un mensaje amigable al resetear (opcional, se puede dejar vacío)
+            mostrarMensaje(
+                'Consulta reiniciada. Por favor, ingresa un nuevo Número de Socio.',
+                'bg-blue-50 border-blue-200 text-blue-700'
+            );
         }
 
         /**
@@ -315,8 +333,9 @@
             }
         });
 
-        // Exponer la función globalmente para el onclick del botón
+        // Exponer las funciones globalmente para el onclick del botón y el logo
         window.consultarCuota = consultarCuota;
+        // La función resetForm ya está expuesta arriba, pero se mantiene la convención.
     </script>
 </body>
 </html>
